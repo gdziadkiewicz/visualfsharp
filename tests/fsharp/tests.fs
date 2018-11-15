@@ -1839,6 +1839,11 @@ module ToolsTests =
     let ``eval-FSI_BASIC`` () = singleTestBuildAndRun "tools/eval" FSI_BASIC
 
 module RegressionTests = 
+    [<Test>]
+    let ``fs-du-indexer-atributes-bug-FSI_STDIN`` () = singleTestBuildAndRun "regression/fs-du-indexer-atributes-bug" FSI_STDIN
+
+    [<Test>]
+    let ``fs-du-indexer-atributes-bug-FSC_BASIC`` () = singleTestBuildAndRun "regression/fs-du-indexer-atributes-bug" FSC_BASIC
 
     [<Test>]
     let ``literal-value-bug-2-FSC_BASIC`` () = singleTestBuildAndRun "regression/literal-value-bug-2" FSC_BASIC
