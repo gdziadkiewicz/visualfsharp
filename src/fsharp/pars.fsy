@@ -625,8 +625,8 @@ signatureFile:
 
 /* The start of a module declaration */
 moduleIntro: 
-  | moduleKeyword opt_access opt_rec path 
-      { $3, $4.Lid, grabXmlDoc(parseState,1), $2 }
+  | moduleKeyword opt_access opt_rec opt_attributes path 
+      { $3, $5.Lid, grabXmlDoc(parseState,1), $2, $4 }
 
 
 /* The start of a namespace declaration */
@@ -675,11 +675,11 @@ fileModuleSpec:
     { if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
       let m2 = rhs parseState 3
       let m = (rhs2 parseState 3 4)
-      let isRec,path2,xml,vis = $3 
+      let isRec,path2,xml,vis, attributes = $3 
       (fun (isRec2,path,_) -> 
         if not (isNil path) then errorR(Error(FSComp.SR.parsNamespaceOrModuleNotBoth(),m2))
         let lid = path@path2 
-        ParsedSigFileFragment.NamedModule(SynModuleOrNamespaceSig(lid, (isRec || isRec2), NamedModule, $4, xml,$1,vis,m)))  }
+        ParsedSigFileFragment.NamedModule(SynModuleOrNamespaceSig(lid, (isRec || isRec2), NamedModule, $4, xml,$1 @ attributes,vis,m)))  }
 
   | moduleSpfnsPossiblyEmptyBlock 
     { let m = (rhs parseState 1) 
@@ -737,19 +737,19 @@ moduleSpfn:
 
   | opt_attributes opt_declVisibility moduleIntro colonOrEquals namedModuleAbbrevBlock 
       { if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
-        let isRec, path, xml, vis = $3 
+        let isRec, path, xml, vis, attr = $3 
         if isRec then raiseParseErrorAt (rhs parseState 3) (FSComp.SR.parsInvalidUseOfRec())
         if not (isSingleton path) then raiseParseErrorAt (rhs parseState 3) (FSComp.SR.parsModuleAbbreviationMustBeSimpleName())
-        if not (isNil $1) then raiseParseErrorAt (rhs parseState 1) (FSComp.SR.parsIgnoreAttributesOnModuleAbbreviation())
+        if not (isNil ($1 @ attr)) then raiseParseErrorAt (rhs parseState 1) (FSComp.SR.parsIgnoreAttributesOnModuleAbbreviation())
         match vis with
         | Some vis -> raiseParseErrorAt (rhs parseState 1) (FSComp.SR.parsIgnoreVisibilityOnModuleAbbreviationAlwaysPrivate(vis.ToString()))
         | _ -> SynModuleSigDecl.ModuleAbbrev(List.head path,$5,rhs2 parseState 3 5) } 
 
   | opt_attributes opt_declVisibility  moduleIntro colonOrEquals moduleSpecBlock
-      { let isRec, path, xml, vis = $3 
+      { let isRec, path, xml, vis, attr = $3 
         if not (isSingleton path) then raiseParseErrorAt (rhs parseState 3) (FSComp.SR.parsModuleDefnMustBeSimpleName())
         if isRec then raiseParseErrorAt (rhs parseState 3) (FSComp.SR.parsInvalidUseOfRec())
-        let info = ComponentInfo($1,[],[],path,xml,false,vis,rhs parseState 3)
+        let info = ComponentInfo($1 @ attr,[],[],path,xml,false,vis,rhs parseState 3)
         if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
         SynModuleSigDecl.NestedModule(info, isRec, $5, rhs2 parseState 3 5) }
 
@@ -1097,11 +1097,11 @@ fileModuleImpl:
     { if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
       let m2 = rhs parseState 3
       let m = (m2, $4) ||> unionRangeWithListBy (fun modu -> modu.Range)
-      let isRec2,path2,xml,vis = $3 
+      let isRec2,path2,xml,vis, attr = $3 
       (fun (isRec, path, _) -> 
         if not (isNil path) then errorR(Error(FSComp.SR.parsNamespaceOrModuleNotBoth(),m2))
         let lid = path@path2 
-        ParsedImplFileFragment.NamedModule(SynModuleOrNamespace(lid, (isRec || isRec2), NamedModule, $4, xml,$1,vis,m))) }
+        ParsedImplFileFragment.NamedModule(SynModuleOrNamespace(lid, (isRec || isRec2), NamedModule, $4, xml,$1 @ attr,vis,m))) }
 
   | moduleDefnsOrExprPossiblyEmptyOrBlock 
     { let m = (rhs parseState 1) 
@@ -1238,7 +1238,8 @@ moduleDefn:
   /* 'module' definitions */
   | opt_attributes opt_declVisibility moduleIntro EQUALS  namedModuleDefnBlock
       { if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
-        let attribs, (isRec, path, xml, vis) = $1,$3 
+        let attribs1, (isRec, path, xml, vis, attribs2) = $1 ,$3
+        let attribs = attribs1 @ attribs2
         match $5 with 
         | Choice1Of2 eqn -> 
             if Option.isSome $2 then errorR(Error(FSComp.SR.parsVisibilityDeclarationsShouldComePriorToIdentifier(),rhs parseState 2))
